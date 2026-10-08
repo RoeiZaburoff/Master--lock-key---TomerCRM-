@@ -1,0 +1,71 @@
+name: Verify CRM
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  crm:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: crm
+          MYSQL_USER: crm
+          MYSQL_PASSWORD: ci-fixture-database
+          MYSQL_ROOT_PASSWORD: ci-fixture-root
+        ports: [3306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    env:
+      DB_HOST: 127.0.0.1
+      DB_NAME: crm
+      DB_USER: crm
+      DB_PASSWORD: ci-fixture-database
+      REQUIRE_HTTPS: 'false'
+      TEST_ALLOW_DB_WRITE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, mbstring, gd, zip, fileinfo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Build styles
+        run: |
+          npm ci --ignore-scripts
+          npm run build:css
+          python3 bin/prepare-public.py
+      - name: PHP syntax and signatures
+        run: |
+          find app config bin tests views libs public integrations -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l bootstrap.php
+          php tests/signatures.php
+      - name: Fresh database and business flow
+        run: |
+          php bin/migrate.php
+          php bin/migrate.php
+          php -r 'echo bin2hex(random_bytes(24));' > /tmp/mlk-ci-password
+          chmod 600 /tmp/mlk-ci-password
+          php bin/create-admin.php admin < /tmp/mlk-ci-password
+          php bin/create-company.php MasterLocknKey
+          mkdir -p storage/logos storage/inventory storage/pdf
+          php bin/doctor.php
+          php tests/business.php
+          php tests/security.php < /tmp/mlk-ci-password
+      - name: HTTP flow and archive checks
+        run: |
+          php -S 127.0.0.1:8081 -t public public/router.php >/tmp/mlk-php.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8081/health >/dev/null; then break; fi
+            sleep 1
+          done
+          python3 tests/smoke_http.py --password-file /tmp/mlk-ci-password --settings-file /tmp/mlk-test-ids.json --security
+          python3 bin/build-release.py
+          python3 tests/release.py

@@ -1,0 +1,15 @@
+/config/local.php
+/.env
+/.env.*
+!/.env.example
+/node_modules/
+/dist/
+/public/assets/
+/storage/*
+!/storage/.gitkeep
+*.log
+*.zip
+*.sql.gz
+.DS_Store
+._*
+__MACOSX/

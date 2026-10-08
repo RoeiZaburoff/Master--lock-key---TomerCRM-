@@ -1,0 +1,6 @@
+{
+  "name": "masterlocknkey-crm-build",
+  "private": true,
+  "scripts": {"build:css": "tailwindcss -i build/tailwind.css -o assets/css/tailwind.css --minify"},
+  "devDependencies": {"tailwindcss": "3.4.17"}
+}

@@ -1,0 +1,8 @@
+Options -Indexes
+DirectoryIndex index.php
+RewriteEngine On
+RewriteRule ^(?:\.|app/|config/|storage/.*\.php|bin/|database/|docs/|tests/|libs/|views/) - [F,L]
+RewriteRule ^(?:setpass|run_migration|migrate_ownership|router)\.php$ - [F,L]
+RewriteRule ^assets/ - [L]
+RewriteRule ^index\.php$ - [L]
+RewriteRule ^ index.php [QSA,L]

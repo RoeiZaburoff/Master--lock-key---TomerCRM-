@@ -1,0 +1,38 @@
+name: masterlocknkey
+services:
+  web:
+    working_dir: /var/www/crm
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      DB_HOST: db
+      DB_NAME: crm
+      DB_USER: crm
+      DB_PASSWORD: ${DB_PASSWORD:?Set a database password}
+      REQUIRE_HTTPS: "false"
+      APP_NAME: MasterLocknKey CRM
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - crm_storage:/var/www/crm/storage
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: crm
+      MYSQL_USER: crm
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set a database password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set a root database password}
+    volumes:
+      - crm_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+volumes:
+  crm_db:
+  crm_storage:
